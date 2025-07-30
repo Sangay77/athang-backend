@@ -1,0 +1,57 @@
+#server:
+#  port: 8083
+#  servlet:
+#    context-path: /api/v1
+#
+#spring:
+#  application:
+#    name: athang-backend
+#
+#  datasource:
+#    url: jdbc:mysql://localhost:3306/bfs_db
+#    username: root
+#    password: Noko@2025
+#    hikari:
+#      minimum-idle: 1
+#      maximum-pool-size: 2
+#
+#  jpa:
+#    hibernate:
+#      ddl-auto: update
+#
+#  mail:
+#    host: smtp.gmail.com
+#    port: 587
+#    username: stenzin@rma.org.bt
+#    password: gobj rhci mpdt uvht
+#    properties:
+#      mail:
+#        smtp:
+#          auth: true
+#          starttls:
+#            enable: true
+#
+#  security:
+#    oauth2:
+#      client:
+#        registration:
+#          my-idp:
+#            client-id: payment
+#            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+#            authorization-grant-type: authorization_code
+#            scope:
+#              - openid
+#              - profile
+#              - email
+#        provider:
+#          my-idp:
+#            issuer-uri: https://demo-sso-api.flyweightsoft.com
+#            authorization-uri: https://demo-sso-api.flyweightsoft.com/protocol/openid-connect/auth
+#            token-uri: https://demo-sso-api.flyweightsoft.com/protocol/openid-connect/token
+#            user-info-uri: https://demo-sso-api.flyweightsoft.com/protocol/openid-connect/userinfo
+#            jwk-set-uri: https://demo-sso-api.flyweightsoft.com/.well-known/jwks.json
+#            user-name-attribute: email
+#
+#jwt:
+#  secret: 5367566B59703373367639792F423F4528482B4D6251658576D5A71347437
+#  expiration: 780000

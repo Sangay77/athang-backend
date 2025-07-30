@@ -1,0 +1,16 @@
+services:
+  postgres:
+    container_name: bfs_rma
+    image: 17.5
+    environment:
+      POSTGRES_USER: username
+      POSTGRES_PASSWORD: password
+      PGDATA: /data/postgres
+      POSTGRES_DB: rma_bfs_db
+    volumes:
+      - postgres:/data/postgres
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+volumes:
+  postgres:
