@@ -13,8 +13,9 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
+
+import static com.bfs.rma.payment.helper.TxnHelper.nullToEmpty;
 
 @Component
 public class CallBFSApiHelper {
@@ -27,9 +28,7 @@ public class CallBFSApiHelper {
     @Value("${beneficiary.rma_api_url}")
     private String url;
 
-
     private static final Logger logger = LoggerFactory.getLogger(CallBFSApiHelper.class);
-
 
     public CallBFSApiHelper(WebClient.Builder webClientBuilder) {
         this.webClientBuilder = webClientBuilder;
@@ -50,28 +49,28 @@ public class CallBFSApiHelper {
                 .bodyToMono(String.class)
                 .block();
 
-        long endTime = System.currentTimeMillis();
-        long durationMs = endTime - startTime;
-
+        long durationMs = System.currentTimeMillis() - startTime;
         logger.info("+++ [{}] Response received in {} ms", msgType, durationMs);
-        logger.debug("+++ [{}] Raw Response: {}", msgType, responseBody);
+        logger.info("+++ [{}] Raw Response: {}", msgType, responseBody);
 
-        return Arrays.stream(Objects.requireNonNull(responseBody).split("&"))
-                .map(kv -> kv.split("="))
-                .filter(kv -> kv.length == 2)
+        return Arrays.stream(responseBody.split("&"))
+                .map(pair -> pair.split("=", 2))
+                .filter(pair -> pair.length >= 1 && !pair[0].isEmpty()) // ensure key exists
                 .collect(Collectors.toMap(
-                        kv -> kv[0],
-                        kv -> decodeValue(kv[1])
+                        pair -> pair[0],
+                        pair -> nullToEmpty(pair.length == 2 ? decodeValue(pair[1]) : null),
+                        (existing, replacement) -> replacement // merge function to avoid collision errors
                 ));
     }
 
     private MultiValueMap<String, String> buildParams(String msgType, TransactionMaster tx) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("bfs_msgType", msgType);
+        params.add("bfs_benfId", tx.getBfs_benfId());
+        params.add("bfs_checkSum", tx.getBfs_checkSum());
 
         switch (msgType) {
             case "AR":
-                params.add("bfs_msgType", "AR");
-                params.add("bfs_benfId", tx.getBfs_benfId());
                 params.add("bfs_benfTxnTime", tx.getBfs_benfTxnTime());
                 params.add("bfs_orderNo", tx.getBfs_orderNo());
                 params.add("bfs_benfBankCode", tx.getBfs_benfBankCode());
@@ -80,23 +79,16 @@ public class CallBFSApiHelper {
                 params.add("bfs_txnCurrency", tx.getBfs_txnCurrency());
                 params.add("bfs_txnAmount", tx.getBfs_txnAmount());
                 params.add("bfs_version", tx.getBfs_version());
-                params.add("bfs_checkSum", tx.getBfs_checkSum());
                 break;
 
             case "AE":
-                params.add("bfs_msgType", "AE");
-                params.add("bfs_benfId", tx.getBfs_benfId());
                 params.add("bfs_bfsTxnId", tx.getBfs_bfsTxnId());
-                params.add("bfs_checkSum", tx.getBfs_checkSum());
                 params.add("bfs_remitterAccNo", tx.getAccountNumber());
                 params.add("bfs_remitterBankId", tx.getBfs_remitterBankId());
                 break;
 
             case "DR":
-                params.add("bfs_msgType", "DR");
-                params.add("bfs_benfId", tx.getBfs_benfId());
                 params.add("bfs_bfsTxnId", tx.getBfs_bfsTxnId());
-                params.add("bfs_checkSum", tx.getBfs_checkSum());
                 params.add("bfs_remitterOtp", tx.getBfs_remitterOtp());
                 break;
 

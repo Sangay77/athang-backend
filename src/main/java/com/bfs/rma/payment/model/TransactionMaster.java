@@ -1,5 +1,6 @@
 package com.bfs.rma.payment.model;
 
+import com.bfs.rma.bill.Invoice;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,9 @@ public class TransactionMaster {
     @Column(name = "BFS_TXN_ID")
     private String bfs_bfsTxnId;
     private String bfs_remitterOtp;
+
+    @OneToOne(mappedBy = "transaction")
+    private Invoice invoice;
 
     @Override
     public String toString() {

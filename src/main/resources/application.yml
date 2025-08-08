@@ -1,16 +1,12 @@
-#server:
-#  port: 8083
-#  servlet:
-#    context-path: /api/v1
-#
 #spring:
 #  application:
 #    name: athang-backend
 #
 #  datasource:
-#    url: jdbc:mysql://localhost:3306/bfs_db
+#    url: jdbc:mysql://localhost:3306/athang_db
 #    username: root
 #    password: Noko@2025
+#    driver-class-name: com.mysql.cj.jdbc.Driver
 #    hikari:
 #      minimum-idle: 1
 #      maximum-pool-size: 2
@@ -18,6 +14,12 @@
 #  jpa:
 #    hibernate:
 #      ddl-auto: update
+#    show-sql: false
+#    properties:
+#      hibernate:
+#        format_sql: true
+#    database: mysql
+#    database-platform: org.hibernate.dialect.MySQLDialect
 #
 #  mail:
 #    host: smtp.gmail.com
@@ -32,17 +34,18 @@
 #            enable: true
 #
 #  security:
+#    mailing:
+#      frontend:
+#        activation-url: http://localhost:4200/activate-account
 #    oauth2:
 #      client:
 #        registration:
 #          my-idp:
 #            client-id: payment
-#            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 #            authorization-grant-type: authorization_code
-#            scope:
-#              - openid
-#              - profile
-#              - email
+#            client-authentication-method: none
+#            redirect-uri: http://localhost:8083/api/v1/login/oauth2/code/my-idp
+#            scope: profile,email
 #        provider:
 #          my-idp:
 #            issuer-uri: https://demo-sso-api.flyweightsoft.com
@@ -52,6 +55,27 @@
 #            jwk-set-uri: https://demo-sso-api.flyweightsoft.com/.well-known/jwks.json
 #            user-name-attribute: email
 #
-#jwt:
-#  secret: 5367566B59703373367639792F423F4528482B4D6251658576D5A71347437
-#  expiration: 780000
+#server:
+#  port: 8083
+#  servlet:
+#    context-path: /api/v1
+#
+#application:
+#  security:
+#    jwt:
+#      secret-key: 5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
+#      expiration: 30000                 # Access token (e.g. 30 seconds for testing)
+#      refresh-token:
+#        expiration: 900                # Refresh token (e.g. 15 minutes)
+#
+#beneficiary:
+#  benf_id: BE10000251
+#  rma_api_url: http://uatbfssecure.rma.org.bt:8080/BFSSecure/nvpapi
+#
+#keys:
+#  private-path: classpath:pki/BE10000251.key
+#
+#logging:
+#  level:
+#    org.springframework.security.oauth2.client: DEBUG
+#    org.springframework.security.web.authentication: DEBUG

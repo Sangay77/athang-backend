@@ -27,4 +27,5 @@ public interface UserRepository extends JpaRepository<AppUser, Integer> {
     @Query("UPDATE AppUser u SET u.enabled=?2 WHERE u.id=?1")
     @Modifying
     void updateEnabledStatus(Integer id, boolean enabled);
+
 }

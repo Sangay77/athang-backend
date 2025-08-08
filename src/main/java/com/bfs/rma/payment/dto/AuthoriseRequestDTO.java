@@ -8,4 +8,5 @@ public class AuthoriseRequestDTO {
 
     private String bfs_paymentDesc;
     private String txnAmount;
+    private Integer formId;
 }

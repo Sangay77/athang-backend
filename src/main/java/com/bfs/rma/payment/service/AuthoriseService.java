@@ -2,102 +2,102 @@ package com.bfs.rma.payment.service;
 
 import com.bfs.rma.payment.dto.AuthoriseRequestDTO;
 import com.bfs.rma.payment.helper.CallBFSApiHelper;
+import com.bfs.rma.payment.helper.MapBuilder;
 import com.bfs.rma.payment.helper.PGPKIImpl;
-import com.bfs.rma.payment.helper.SourceStringHelper;
+import com.bfs.rma.payment.helper.TxnHelper;
 import com.bfs.rma.payment.model.TransactionMaster;
 import com.bfs.rma.payment.model.TransactionResponse;
 import com.bfs.rma.payment.repository.TransactionRepository;
 import com.bfs.rma.payment.repository.TransactionResponseRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class AuthoriseService {
-
-    private static final Logger logger = LoggerFactory.getLogger(AuthoriseService.class);
 
     private final TransactionRepository transactionRepo;
     private final TransactionResponseRepository transactionResponseRepo;
-    private final SourceStringHelper sourceStringHelper;
     private final PGPKIImpl pgpki;
     private final CallBFSApiHelper apiHelper;
+    private final TxnHelper txnHelper;
+    private final MapBuilder mapHelper;
 
     @Value("${beneficiary.benf_id}")
-    private String benf_id;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    public AuthoriseService(TransactionRepository transactionRepo,
-                            TransactionResponseRepository transactionResponseRepo,
-                            SourceStringHelper sourceStringHelper,
-                            PGPKIImpl pgpki,
-                            CallBFSApiHelper apiHelper) {
-        this.transactionRepo = transactionRepo;
-        this.transactionResponseRepo = transactionResponseRepo;
-        this.sourceStringHelper = sourceStringHelper;
-        this.pgpki = pgpki;
-        this.apiHelper = apiHelper;
-    }
+    private String beneficiaryId;
 
     public Map<String, String> authService(AuthoriseRequestDTO dto) throws Exception {
+        log.info("Creating transaction");
+
+        TransactionMaster txn = buildTransaction(dto);
+        String sourceString = txnHelper.generateCheckSumString(mapHelper.buildAuthMap(txn));
+        log.info("Authorization checksum source string: {}", sourceString);
+
+        String requestChecksum = pgpki.signData(sourceString);
+        txn.setBfs_checkSum(requestChecksum);
+        log.info("Checksum generated: {}", requestChecksum);
+
+        transactionRepo.save(txn);
+        log.info("Authorization request saved");
+
+        log.info("Calling RMA Endpoint");
+        Map<String, String> responseMap = apiHelper.callBfsApi("AR", txn);
+
+        saveTransactionResponse(txn, responseMap);
+        updateTransactionWithTxnId(txn, responseMap);
+
+        return txnHelper.verifySignatureAndReturnResponse(responseMap);
+    }
+
+    private TransactionMaster buildTransaction(AuthoriseRequestDTO dto) {
         TransactionMaster txn = new TransactionMaster();
         txn.setBfs_txnAmount(dto.getTxnAmount());
-        txn.setBfs_orderNo("NOKO" + System.currentTimeMillis());
+        txn.setBfs_orderNo("ATHANG" + System.currentTimeMillis());
         txn.setBfs_benfTxnTime(new SimpleDateFormat("yyyyMMddHHmmss").format(new Date()));
         txn.setBfs_paymentDesc(dto.getBfs_paymentDesc());
         txn.setBfs_remitterEmail("stenzin@rma.org.bt");
-        txn.setBfs_benfId(benf_id);
+        txn.setBfs_benfId(beneficiaryId);
         txn.setBfs_benfBankCode("01");
         txn.setBfs_txnCurrency("BTN");
         txn.setBfs_version("1.0");
+        return txn;
+    }
 
-        String sourceString = sourceStringHelper.constructAuthorizationSourceString(txn);
-        String checksum = pgpki.signData(sourceString);
-        txn.setBfs_checkSum(checksum);
-
-        logger.info("AuthoriseRequest Set: {}", txn);
-        transactionRepo.save(txn);
-
-        Map<String, String> responseMap = apiHelper.callBfsApi("AR", txn);
-
-        // Save response in transaction_responses
+    private void saveTransactionResponse(TransactionMaster txn, Map<String, String> responseMap) {
         try {
-            String responseJson = objectMapper.writeValueAsString(responseMap);
-
             TransactionResponse response = new TransactionResponse();
+
             response.setTransaction(txn);
             response.setMsgType("AR");
             response.setBfs_response_type(responseMap.get("bfs_msgType"));
-            response.setRawResponse(responseJson);
+            response.setRawResponse(responseMap.toString());
             response.setBfs_responseCode(responseMap.get("bfs_responseCode"));
 
-            String code = responseMap.getOrDefault("bfs_responseCode", "unknown");
-            response.setStatus("00".equals(code) ? "success" : "failed");
+            String status = "00".equals(responseMap.getOrDefault("bfs_responseCode", "")) ? "success" : "failed";
+            response.setStatus(status);
 
             transactionResponseRepo.save(response);
-            logger.info("TransactionResponse saved with status: {}", response.getStatus());
-        } catch (Exception e) {
-            logger.error("Failed to save TransactionResponse", e);
+            log.info("Saved TransactionResponse with status: {}", status);
+        } catch (Exception ex) {
+            log.error("Failed to save TransactionResponse", ex);
         }
+    }
 
-        // Update transaction with BFS txn ID if present
-        String txnId = responseMap.get("bfs_bfsTxnId");
-        if (txnId != null) {
+    private void updateTransactionWithTxnId(TransactionMaster txn, Map<String, String> responseMap) {
+        Optional.ofNullable(responseMap.get("bfs_bfsTxnId")).ifPresentOrElse(txnId -> {
             txn.setBfs_bfsTxnId(txnId);
             transactionRepo.save(txn);
-            logger.info("Transaction updated with bfs_bfsTxnId: {}", txnId);
-        } else {
-            logger.warn("bfs_bfsTxnId not found in response: {}", responseMap);
-        }
-
-        return responseMap;
+            log.info("Updated txn with bfs_bfsTxnId: {}", txnId);
+        }, () -> log.warn("bfs_bfsTxnId not found in response: {}", responseMap));
     }
+
+
 }

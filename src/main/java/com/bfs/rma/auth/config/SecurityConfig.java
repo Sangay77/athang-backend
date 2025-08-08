@@ -1,5 +1,7 @@
 package com.bfs.rma.auth.config;
 
+import com.bfs.rma.auth.jwt.JwtFilter;
+import com.bfs.rma.handler.CustomAuthEntryPoint;
 import com.bfs.rma.auth.service.CustomUserDetailService;
 import com.bfs.rma.auth.sso.CustomOAuth2UserService;
 import com.bfs.rma.auth.sso.OAuth2LoginSuccessHandler;
@@ -42,6 +44,9 @@ public class SecurityConfig {
     @Autowired
     private OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
 
+    @Autowired
+    private CustomAuthEntryPoint customAuthEntryPoint;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
@@ -57,10 +62,19 @@ public class SecurityConfig {
                                 "/auth/**",
                                 "/api/v1/oauth2",
                                 "/api/v1/oauth2/**",
-                                "/api/v1/auth/**"
+                                "/api/v1/auth/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
+
+                .anonymous(AbstractHttpConfigurer::disable) // 🔥 This line disables fallback to anonymous
+
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(customAuthEntryPoint))
+
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)
@@ -69,7 +83,6 @@ public class SecurityConfig {
                 )
                 .logout(logout -> logout
                         .logoutUrl("/api/v1/logout")
-                        // Return 200 OK with no redirect on logout success
                         .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler())
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID")
@@ -79,6 +92,7 @@ public class SecurityConfig {
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
+
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
@@ -98,16 +112,36 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+//    @Bean
+//    public CorsConfigurationSource corsConfigurationSource() {
+//        CorsConfiguration config = new CorsConfiguration();
+
+    /// /        config.setAllowedOrigins(List.of("http://localhost:4200"));
+//        config.setAllowedOriginPatterns(List.of("*"));
+//
+//        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+//        config.setAllowedHeaders(List.of("*"));
+//        config.setAllowCredentials(true);
+//
+//        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+//        source.registerCorsConfiguration("/**", config);
+//        return source;
+//    }
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
+        config.setAllowedOrigins(List.of(
+                "http://localhost:4200",
+                "http://141.148.209.255:4200",
+                "http://yourdomain.com"
+        ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
+        config.setAllowCredentials(true); // REQUIRED for cookies or credentials
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
     }
+
 }

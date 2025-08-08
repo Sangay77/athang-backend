@@ -18,6 +18,10 @@ public class UserPrincipal implements UserDetails {
         this.user = user;
     }
 
+    public AppUser getAppUser() {
+        return this.user;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         Set<Role> roles = user.getRoles();
