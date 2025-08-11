@@ -57,17 +57,19 @@ public class SecurityConfig {
                                 "/assets/**",
                                 "/css/**",
                                 "/js/**",
-                                "/images/**",
+                                "images/**",
                                 "/favicon.ico",
                                 "/auth/**",
-                                "/api/v1/oauth2",
-                                "/api/v1/oauth2/**",
-                                "/api/v1/auth/**",
+                                "/oauth2/**",
+
+                                // Swagger & API docs
                                 "/v3/api-docs/**",
+                                "/swagger-ui.html",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/api-docs/**" // matches your springdoc.api-docs.path
                         ).permitAll()
                         .anyRequest().authenticated()
+
                 )
 
                 .anonymous(AbstractHttpConfigurer::disable) // 🔥 This line disables fallback to anonymous
@@ -112,36 +114,18 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-//    @Bean
-//    public CorsConfigurationSource corsConfigurationSource() {
-//        CorsConfiguration config = new CorsConfiguration();
-
-    /// /        config.setAllowedOrigins(List.of("http://localhost:4200"));
-//        config.setAllowedOriginPatterns(List.of("*"));
-//
-//        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-//        config.setAllowedHeaders(List.of("*"));
-//        config.setAllowCredentials(true);
-//
-//        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-//        source.registerCorsConfiguration("/**", config);
-//        return source;
-//    }
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(
-                "http://localhost:4200",
-                "http://141.148.209.255:4200",
-                "http://yourdomain.com"
-        ));
+        config.setAllowedOriginPatterns(List.of("*")); // ✅ allow from all origins
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true); // REQUIRED for cookies or credentials
+        config.setAllowCredentials(true); // required for cookies / credentials
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
     }
+
 
 }

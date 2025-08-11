@@ -12,6 +12,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 @Component
 public class KeyLoader {
@@ -21,24 +23,23 @@ public class KeyLoader {
     private String pvtKeyFileName;
 
     public RSAPrivateKey readPKCS8PrivateKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        // If the private path is classpath-based, use ClassPathResource
         ClassPathResource resource = new ClassPathResource(pvtKeyFileName.replace("classpath:", ""));
 
-        // Read the content of the private key file from the classpath
-        String key = Files.readString(resource.getFile().toPath());
+        // Read the resource content as InputStream
+        try (InputStream is = resource.getInputStream()) {
+            String key = new String(is.readAllBytes(), StandardCharsets.UTF_8);
 
+            String privateKeyPEM = key
+                    .replace("-----BEGIN PRIVATE KEY-----", "")
+                    .replaceAll("\\s", "")  // remove all whitespace including new lines
+                    .replace("-----END PRIVATE KEY-----", "");
 
-        // Clean up the PEM formatting by removing the beginning and end markers, and line breaks
-        String privateKeyPEM = key
-                .replace("-----BEGIN PRIVATE KEY-----", "")
-                .replaceAll(System.lineSeparator(), "")
-                .replace("-----END PRIVATE KEY-----", "");
+            byte[] encoded = Base64.decodeBase64(privateKeyPEM);
 
-        // Decode the Base64 encoded string
-        byte[] encoded = Base64.decodeBase64(privateKeyPEM);
-
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-        return (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
+            return (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
+        }
     }
+
 }
